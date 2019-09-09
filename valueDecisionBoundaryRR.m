@@ -9,6 +9,10 @@ function valueDecisionBoundaryRR()
 % Nature Communications, 7:12400, (2016). 
 % *Equally contributed.
 
+global gamm geometric;
+linearUtility = true; % (JARM 9th May '19) linear utility? (saturating otherwise)
+geometric = false;   % (JARM 9th May '19) geometric discounting? (reward averaging otherwise)
+gamm = 0.8;    % (JARM 9th May '19) geometric discount factor for future rewards 
 tic;
 Smax = 4;      % Grid range of states space (now we assume: S = [(Rhat1+Rhat2)/2, (Rhat1-Rhat2)/2]); Rhat(t) = (varR*X(t)+varX)/(t*varR+varX) )
 resS = 201;      % Grid resolution of state space
@@ -28,8 +32,11 @@ Sscale = linspace(-Smax,Smax,resS);
 iS0 = [findnearest(g{1}.meanR, Sscale) findnearest(g{2}.meanR, Sscale)];
 
 %% Utility functions:
-utilityFunction = @(x) x;               % Linear utility function (for Fig. 3)
-% utilityFunction = @(x) tanh(x);       % Saturating utility function (for Fig. 6)
+if linearUtility
+    utilityFunction = @(x) x;               % Linear utility function (for Fig. 3)
+else
+    utilityFunction = @(x) tanh(x);       % Saturating utility function (for Fig. 6)
+end
 
 %% Reward rate, Average-adjusted value, Decision:
 Slabel = {'r_1^{hat}', 'r_2^{hat}'};
@@ -37,7 +44,11 @@ Slabel = {'r_1^{hat}', 'r_2^{hat}'};
 Rh{1} = utilityFunction(S{1});                                                                              % Expected reward for option 1
 Rh{2} = utilityFunction(S{2});                                                                              % Expected reward for option 2
 RhMax = max_({Rh{1}, Rh{2}});                                                                               % Expected reward for decision
-rho_ = fzero(@(rho) backwardInduction(rho,c,tNull,g,Rh,S,t,dt,iS0), g{1}.meanR, optimset('MaxIter',10));    % Reward rate
+if geometric == false
+    rho_ = fzero(@(rho) backwardInduction(rho,c,tNull,g,Rh,S,t,dt,iS0), g{1}.meanR, optimset('MaxIter',10));    % Reward rate
+else
+    rho_ = 0 % (JARM 9th May '19) reward rate optimisation does not currently converge for geometric discounting
+end
 [V0, V, D, EVnext, rho, Ptrans, iStrans] = backwardInduction(rho_,c,tNull,g,Rh,S,t,dt,iS0);                 % Average-adjusted value, Decision, Transition prob. etc.
 dbS2 = detectBoundary(D,S,t);
 
@@ -89,17 +100,40 @@ subplotXY(5,4,2,4); plotSurf(Sscale, V(:,:,iTmax), iS2, [0 0 0], Slabel); title(
 
 toc;
 
+%% write D timelapse video to file (JARM 21st May '19)
+v = VideoWriter('D.avi');
+open(v);
+
+figure;
+imagesc(Sscale, Sscale, D(:,:,iTmax), [1 3]); axis square; axis xy; title('D(T)'); hold on; axis(rect(1:4));
+set(gca,'nextplot','replacechildren');
+for i = 1:iTmax
+  imagesc(Sscale, Sscale, D(:,:,i), [1 3]); axis square; axis xy; title('D(T)'); hold on; axis(rect(1:4));
+  frame = getframe;
+  writeVideo(v,frame);
+end    
+close(v);
 
 function [V0, V, D, EVnext, rho, Ptrans, iStrans] = backwardInduction(rho_,c,tNull,g,Rh,S,t,dt,iS0)
-k = 0;
-rho = k*S{1}/tNull + (1-k)*rho_;                                                                        % Reward rate estimate
-[V(:,:,length(t)), D(:,:,length(t))] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull});                        % Max V~ at time tmax
+global gamm geometric;
+k = 0;                                                                        % Reward rate estimate
+rho = k*S{1}/tNull + (1-k)*rho_;
+if geometric
+    [V(:,:,length(t)), D(:,:,length(t))] = max_({Rh{1}, Rh{2}});                        % Max V~ at time tmax
+else
+    [V(:,:,length(t)), D(:,:,length(t))] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull});                        % Max V~ at time tmax
+end
 for iT = length(t)-1:-1:1
     [EVnext(:,:,iT), Ptrans{iT}, iStrans{iT}] = E(V(:,:,iT+1),S,t(iT),dt,g);                            % <V~(t+1)|S(t)> for waiting
 %    disp(size(Rh{1}));
 %    disp(size(Rh{2}));
 %    disp(size(EVnext(:,:,iT)));
-    [V(:,:,iT), D(:,:,iT)] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull, EVnext(:,:,iT)-(rho+c)*dt});       % [Average-adjusted value (V~), decision] at time t
+    if geometric
+        [V(:,:,iT), D(:,:,iT)] = max_({Rh{1}, Rh{2}, EVnext(:,:,iT)*gamm});                                % (JARM 9th May '19) [geometrically-discounted value (V~), decision] at time t    
+    else
+        [V(:,:,iT), D(:,:,iT)] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull, EVnext(:,:,iT)-(rho+c)*dt});       % [Average-adjusted value (V~), decision] at time t
+    end
+    
 %     fprintf('%d/%d\t',iT,length(t)-1); toc;
 end
 disp(iS0(1));
