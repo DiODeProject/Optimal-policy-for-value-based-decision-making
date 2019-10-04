@@ -11,7 +11,7 @@ function valueDecisionBoundaryRR()
 
 global gamm geometric;
 linearUtility = true; % (JARM 9th May '19) linear utility? (saturating otherwise)
-geometric = false;   % (JARM 9th May '19) geometric discounting? (reward averaging otherwise)
+geometric = true;   % (JARM 9th May '19) geometric discounting? (reward averaging otherwise)
 gamm = 0.8;    % (JARM 9th May '19) geometric discount factor for future rewards 
 tic;
 Smax = 4;      % Grid range of states space (now we assume: S = [(Rhat1+Rhat2)/2, (Rhat1-Rhat2)/2]); Rhat(t) = (varR*X(t)+varX)/(t*varR+varX) )

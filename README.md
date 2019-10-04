@@ -1,6 +1,8 @@
 # Optimal-policy-for-value-based-decision-making
 
-These codes generate the figures presented in the paper by Tajima, Drugowitsch & Pouget (2016) [1] and run some extended simulations.
+These codes modify the analysis presented in the paper by Tajima, Drugowitsch & Pouget (2016) [1], to examine the implication of maximising geometric-discounted future rewards on the optimal policy, rather than maximising arithmetic mean reward rate.
+
+**N.B.** reward rate across trials is not maximised, but set to 0; this has the effect of considering only single trial dynamics, since the cost of waiting for the next trial becomes zero. 
 
 
 CITATION:
@@ -12,4 +14,4 @@ Nature Communications, 7:12400, (2016).
 
 
 USAGE:
-'valueDecisionBoundaryRR.m' generates figures used in Figs. 3 or 6 in the paper.  You can switch the utility function assumed in the model by removing commented-out lines in the code. 
+'valueDecisionBoundaryRR.m' generates figures used in Figs. 3 or 6 in the paper.  You can switch the utility function and reward calculation assumed in the model by removing commented-out lines in the code. 
